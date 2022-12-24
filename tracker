@@ -1,4 +1,63 @@
 #!/bin/Rscript
-t = read.csv("transactions.csv");
-head(t)
+
+buys = read.csv("buy.csv");
+sells = read.csv("sell.csv");
+head(buys)
+head(sells)
+cat("----------------------------------------------------\n")
+
+# This adds a "cost-basis" column to buy transactions.
+# It returns a vector.
+add_basis_col <- function()  {
+  buys$val.tx * buys$asset + buys$fee # val-tx * asset + fee
+}
+
+# This adds a "proceeds" column to buy transactions.
+add_proceeds_col = function()  {
+  sells$asset * sells$val.tx - sells$fee # asset * val-tx - fee
+}
+
+# This adds a fifo value column for buy transasctions.
+add_fifo = function() {
+  buys$asset
+}
+
+buys$"cost-basis" = add_basis_col()
+sells$proceeds = add_proceeds_col()
+#buys; sells
+
+# intialize fifo column
+buys$fifo = add_fifo()
+buys
+
+cat("---\n")
+
+stack = buys[buys$ticker == "BTC" & buys$fifo >0,]
+first = head(stack,1)
+first
+
+create_entry = function (asset, tick, aquired, sold, pro, base) {
+  entry = data.frame (asset, tick, aquired, sold, pro, basis)
+  write.table(entry, file = "data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
+}
+
+for (i in 1:nrow(sells)) {
+  # get ticker
+  t<- sells[i,]$ticker
+
+  # create a subset of the buys with corresponding ticker and
+  # get the buy that was first put in the stack (oldest)
+  stack = buys[buys$ticker == t & buys$fifo > 0,]
+  first = head(stack,1)
+
+  # create an entry
+  asset = sells[1,]$asset
+  date_aquired = first$date
+  date_sold = sells[i,]$date
+  proceeds = sells[i,]$proceeds
+  basis = first$"cost-basis"
+  create_entry(asset, t,date_aquired, date_sold, proceeds, basis)
+
+  # output to a csv
+}
 
