@@ -23,8 +23,12 @@ add_fifo = function() {
   buys$asset
 }
 
+
 buys$"cost-basis" = add_basis_col()
+buys$index = 1:nrow(buys)
 sells$proceeds = add_proceeds_col()
+sells$index = 1:nrow(sells)
+sells$fifo = sells$asset
 buys; sells
 
 # intialize fifo column
@@ -33,16 +37,21 @@ buys
 
 cat("---\n")
 
-stack = buys[buys$ticker == "BTC" & buys$fifo >0,]
-first = head(stack,1)
-first
+# stack = buys[buys$ticker == "BTC" & buys$fifo >0,]
+# first = head(stack,1)
+# first
 
 create_entry = function (asset, tick, aquired, sold, pro, base, gain) {
   entry = data.frame (asset, tick, aquired, sold, pro, base, gain)
   write.table(entry, file = "data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
 }
 
-for (i in 1:nrow(sells)) {
+i=1
+#t <- sells[i,]$ticker
+#s <- sells[i,]$fifo
+
+#for (i in 1:nrow(sells)) {
+while (sells[i,]$fifo > 0) {
   # get ticker
   t<- sells[i,]$ticker
 
@@ -60,6 +69,22 @@ for (i in 1:nrow(sells)) {
   gain = proceeds - total_basis
 
   create_entry(asset, t,date_aquired, date_sold, proceeds, total_basis, gain)
+
+  if(sells[i,]$fifo > stack$fifo) {
+    # update buys$fifo = 0
+    # update stack[i,]$fifo = stack$fifo - sells[i,]$fifo ?
+    i = i + 1
+    next
+  }
+  if(sells[i,]$fifo < stack$fifo) {
+    # update buy$fifo =  stack$fifo - sells$fifo
+    # update sells[i,]$fifo =0
+    i = i + 1
+    next
+  }
+  if(sells[i,]$fifo == stack$fifo) {
+    # set $sell[i,
+  }
 
   # output to a csv
 }
