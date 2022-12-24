@@ -9,7 +9,8 @@ cat("----------------------------------------------------\n")
 # This adds a "cost-basis" column to buy transactions.
 # It returns a vector.
 add_basis_col <- function()  {
-  buys$val.tx * buys$asset + buys$fee # val-tx * asset + fee
+  (buys$val.tx * buys$asset + buys$fee)/buys$asset # val-tx * asset + fee
+  #(buys$val.tx * buys$asset + buys$fee# val-tx * asset + fee
 }
 
 # This adds a "proceeds" column to buy transactions.
@@ -24,7 +25,7 @@ add_fifo = function() {
 
 buys$"cost-basis" = add_basis_col()
 sells$proceeds = add_proceeds_col()
-#buys; sells
+buys; sells
 
 # intialize fifo column
 buys$fifo = add_fifo()
@@ -36,8 +37,8 @@ stack = buys[buys$ticker == "BTC" & buys$fifo >0,]
 first = head(stack,1)
 first
 
-create_entry = function (asset, tick, aquired, sold, pro, base) {
-  entry = data.frame (asset, tick, aquired, sold, pro, basis)
+create_entry = function (asset, tick, aquired, sold, pro, base, gain) {
+  entry = data.frame (asset, tick, aquired, sold, pro, base, gain)
   write.table(entry, file = "data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
 }
 
@@ -51,12 +52,14 @@ for (i in 1:nrow(sells)) {
   first = head(stack,1)
 
   # create an entry
-  asset = sells[1,]$asset
+  asset = sells[i,]$asset
   date_aquired = first$date
   date_sold = sells[i,]$date
   proceeds = sells[i,]$proceeds
-  basis = first$"cost-basis"
-  create_entry(asset, t,date_aquired, date_sold, proceeds, basis)
+  total_basis = first$"cost-basis" * asset
+  gain = proceeds - total_basis
+
+  create_entry(asset, t,date_aquired, date_sold, proceeds, total_basis, gain)
 
   # output to a csv
 }
