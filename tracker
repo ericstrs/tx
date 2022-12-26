@@ -2,90 +2,107 @@
 
 buys = read.csv("buy.csv");
 sells = read.csv("sell.csv");
-head(buys)
-head(sells)
-cat("----------------------------------------------------\n")
 
-# This adds a "cost-basis" column to buy transactions.
-# It returns a vector.
+# returns a per-asset "cost-basis" vector for buy transactions.
 add_basis_col <- function()  {
   (buys$val.tx * buys$asset + buys$fee)/buys$asset # val-tx * asset + fee
-  #(buys$val.tx * buys$asset + buys$fee# val-tx * asset + fee
 }
 
-# This adds a "proceeds" column to buy transactions.
+# returns a "proceeds" column to buy transactions.
 add_proceeds_col = function()  {
   sells$asset * sells$val.tx - sells$fee # asset * val-tx - fee
 }
 
-# This adds a fifo value column for buy transasctions.
+# rturns "fifo" vector for buy transasctions.
 add_fifo = function() {
   buys$asset
 }
-
-
-buys$"cost-basis" = add_basis_col()
-buys$index = 1:nrow(buys)
-sells$proceeds = add_proceeds_col()
-sells$index = 1:nrow(sells)
-sells$fifo = sells$asset
-buys; sells
-
-# intialize fifo column
-buys$fifo = add_fifo()
-buys
-
-cat("---\n")
-
-# stack = buys[buys$ticker == "BTC" & buys$fifo >0,]
-# first = head(stack,1)
-# first
 
 create_entry = function (asset, tick, aquired, sold, pro, base, gain) {
   entry = data.frame (asset, tick, aquired, sold, pro, base, gain)
   write.table(entry, file = "data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
 }
 
-i=1
-#t <- sells[i,]$ticker
-#s <- sells[i,]$fifo
+buys$"cost-basis" = add_basis_col()
+sells$proceeds = add_proceeds_col()
+sells$fifo = sells$asset
 
-#for (i in 1:nrow(sells)) {
-while (sells[i,]$fifo > 0) {
-  # get ticker
-  t<- sells[i,]$ticker
+buys$fifo = add_fifo()
+buys$index = 1:nrow(buys)
+sells$index = 1:nrow(sells)
 
-  # create a subset of the buys with corresponding ticker and
-  # get the buy that was first put in the stack (oldest)
+i = 1
+
+while (sells[i,]$fifo > 0 & !(i > nrow(sells))) {
+  t<- sells[i,]$ticker # get ticker
+
+  # subset of buys with sell ticker
   stack = buys[buys$ticker == t & buys$fifo > 0,]
+  # in fifo fashion, get the buy that was first put in the stack
   first = head(stack,1)
 
-  # create an entry
-  asset = sells[i,]$asset
-  date_aquired = first$date
-  date_sold = sells[i,]$date
-  proceeds = sells[i,]$proceeds
-  total_basis = first$"cost-basis" * asset
-  gain = proceeds - total_basis
+  index = first$index
+  # sell asset amount is greater than buy on top of the stack
+  if(sells[i,]$fifo > first$fifo) {
 
-  create_entry(asset, t,date_aquired, date_sold, proceeds, total_basis, gain)
+    asset = sells[i,]$fifo
+    sells[i,]$fifo = sells[i,]$fifo - first$fifo
+    asset = asset - sells[i,]$fifo
+    buys[index,]$fifo = 0
 
-  if(sells[i,]$fifo > stack$fifo) {
-    # update buys$fifo = 0
-    # update stack[i,]$fifo = stack$fifo - sells[i,]$fifo ?
+    date_aquired = first$date
+    date_sold = sells[i,]$date
+    proceeds = sells[i,]$"val.tx" * asset
+    total_basis = first$"cost-basis" * asset
+    print(proceeds)
+    print(total_basis)
+    gain = proceeds - total_basis
+
+    # create an entry
+    create_entry(asset, t,date_aquired, date_sold, proceeds,
+      total_basis, gain)
+
+    next
+  }
+  # sell asset amount is less than buy on top of the stack
+  if(sells[i,]$fifo < first$fifo) {
+    asset = sells[i,]$fifo
+    date_aquired = first$date
+    date_sold = sells[i,]$date
+    proceeds = sells[i,]$"val.tx" * asset
+    total_basis = first$"cost-basis" * asset
+    gain = proceeds - total_basis
+
+    # create an entry
+    create_entry(asset, t,date_aquired, date_sold, proceeds,
+      total_basis, gain)
+
+    buys[index,]$fifo = first$fifo - sells[i,]$fifo
+    sells[i,]$fifo = 0
     i = i + 1
     next
   }
-  if(sells[i,]$fifo < stack$fifo) {
-    # update buy$fifo =  stack$fifo - sells$fifo
-    # update sells[i,]$fifo =0
+  # sell asset amount is equal to buy on top of the stack
+  if(sells[i,]$fifo == first$fifo) {
+    asset = sells[i,]$fifo
+    date_aquired = first$date
+    date_sold = sells[i,]$date
+    proceeds = sells[i,]$"val.tx" * asset
+    total_basis = first$"cost-basis" * asset
+    gain = proceeds - total_basis
+
+    # create an entry
+    create_entry(asset, t,date_aquired, date_sold, proceeds,
+      total_basis, gain)
+
+    sells[i,]$fifo = 0
+    if(!is.na(buys[i,]$fifo)) {
+      buys[i,]$fifo = 0
+    }
     i = i + 1
     next
   }
-  if(sells[i,]$fifo == stack$fifo) {
-    # set $sell[i,
-  }
-
-  # output to a csv
+  print("error occured")
 }
+buys;sells
 
