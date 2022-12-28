@@ -1,26 +1,26 @@
 #!/bin/Rscript
 
-buys = read.csv("buy.csv");
-sells = read.csv("sell.csv");
+buys = read.csv("data/buy.csv");
+sells = read.csv("data/sell.csv");
 
 # returns a per-asset "cost-basis" vector for buy transactions.
 add_basis_col <- function()  {
   (buys$val.tx * buys$asset + buys$fee)/buys$asset # val-tx * asset + fee
 }
 
-# returns a "proceeds" column to buy transactions.
+# returns a "proceeds" column for sell transactions.
 add_proceeds_col = function()  {
   sells$asset * sells$val.tx - sells$fee # asset * val-tx - fee
 }
 
-# rturns "fifo" vector for buy transasctions.
+# returns "fifo" vector for buy transasctions.
 add_fifo = function() {
   buys$asset
 }
 
 create_entry = function (asset, tick, aquired, sold, pro, base, gain) {
   entry = data.frame (asset, tick, aquired, sold, pro, base, gain)
-  write.table(entry, file = "data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
+  write.table(entry, file = "data/data.csv", sep = ",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE)
 }
 
 buys$"cost-basis" = add_basis_col()
