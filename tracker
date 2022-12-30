@@ -4,12 +4,12 @@ buys = read.csv("data/buy.csv");
 sells = read.csv("data/sell.csv");
 
 # returns a per-asset "cost-basis" vector for buy transactions.
-add_basis_col <- function()  {
+add_basis_col <- function() {
   (buys$val.tx * buys$asset + buys$fee)/buys$asset # val-tx * asset + fee
 }
 
 # returns a "proceeds" column for sell transactions.
-add_proceeds_col = function()  {
+add_proceeds_col = function() {
   sells$asset * sells$val.tx - sells$fee # asset * val-tx - fee
 }
 
