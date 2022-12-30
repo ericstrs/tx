@@ -57,18 +57,22 @@ void dequeue_buy(buy_queue *b);
 void enqueue_sell(sell_queue *s, sell_tx *tx) ;
 void dequeue_sell(sell_queue *s);
 sell_tx* create_sell_tx(tx *s);
-tx* create_tx(date *d, char *t, double a, double val, double fee, double fifo);
+tx* create_tx(date *d, char *t, double a, double val, double fee);
 
 void init_buy_queue(buy_queue *b)
 {
         b->head = NULL;
+        b->head->next = NULL;
         b->tail = NULL;
+        b->tail->next = NULL;
 }
 
 void init_sell_queue(sell_queue *s)
 {
         s->head = NULL;
+        s->head->next = NULL;
         s->tail = NULL;
+        s->tail->next = NULL;
 }
 
 date* create_date(int year, int day, int month)
@@ -139,6 +143,9 @@ void dequeue_sell(sell_queue *s)
 
         sell_tx *tmp = s->head;
         s->head->next = s->head;
+
+        free(tmp->sell->ticker);
+        free(tmp->sell);
         free(tmp);
 }
 
@@ -147,8 +154,12 @@ buy_tx* create_buy_tx(tx *b)
 {
         buy_tx *i = malloc(sizeof(buy_tx));
 
-        i->buy = b; // should this be `= &b`?
-        i->cost_basis;
+        i->buy = b;
+
+        // determine the cost basis
+        int a = b->asset;
+        i->cost_basis = (b->value_at_tx * a + b->fee) / a;
+
         i->next = NULL;
 
         return i;
@@ -159,23 +170,23 @@ sell_tx* create_sell_tx(tx *s)
 {
         sell_tx *i = malloc(sizeof(sell_tx));
 
-        i->sell = s; // should this be = &s?
-        i->proceeds;
+        i->sell = s;
+        i->proceeds = (s->asset * s->value_at_tx) - s->fee;
         i->next = NULL;
 
         return i;
 }
 
 // create a transaction
-tx* create_tx(date *d, char *t, double a, double val, double fee, double fifo)
+tx* create_tx(date *d, char *t, double a, double val, double fee)
 {
         tx *i = malloc(sizeof(tx));
 
-        i->t_date = d; // should this be = &d?
-        i->ticker = strdup(t);
+        i->t_date = d;
+        i->ticker = strdup(t); // NOTE: must free this
         i->asset = a;
         i->value_at_tx = val;
-        i->fifo = fifo;
+        i->fifo = a;
 
         return i;
 }
@@ -183,13 +194,11 @@ tx* create_tx(date *d, char *t, double a, double val, double fee, double fifo)
 // read csv data and put into stuct
 void read_csv(char *file, buy_queue *bq, sell_queue *sq)
 {
-        char *tok;
         FILE *in;
         if (!(in = fopen(file, "r"))) {
                 fprintf(stderr, "Can't open file.\n");
                 return;
         }
-        char line[80];
 
         int count = 0;
         int year;
@@ -203,33 +212,79 @@ void read_csv(char *file, buy_queue *bq, sell_queue *sq)
         int cols;
 
         do {
-               //fgets(line, 80, in);                                    
                cols = fscanf(in, "%d-%d-%d,%4[^,],%lf,%4[^,],%lf,%lf",
                                &year, &day, &month,
                                ticker, &asset, action,
                                &val, &fee);
-               if (cols == 6) {
+
+               if (cols == 8) {
                        ++count;
                }
-               if (cols != 6 && !feof(in)) {
-                       fprintf(stderr, "File format incorrect: %d\n", month);
+               if (cols != 8 && !feof(in)) {
+                       fprintf(stderr, "Incorrect format.\n");
                        return;
                }
-               printf("Line %d: %d\n", count, month);
-        } while (!feof(in));
-        /*date *d = create_date(2022, 21, 12);
-        tx *t = create_tx(d, "BTC", 0.5, 10000, 250, 0.5);
-        buy_tx *b = create_buy_tx(t);
-        enqueue_buy(&buys, b); */
 
-        /*
-        free(d);
-        free(t);
-        free(b);
-        */
+                date *d = create_date(year, day, month);
+                tx *t = create_tx(d, ticker, asset, val, fee);
+
+                if (strcmp("buy", action) == 0) {
+                        buy_tx *b = create_buy_tx(t);
+                        enqueue_buy(bq, b);
+                        continue;
+                }
+                if (strcmp("sell", action) == 0) {
+                        sell_tx *s = create_sell_tx(t);
+                        enqueue_sell(sq, s);
+                        continue;
+                }
+        } while (!feof(in));
 
         fclose(in);
         return;
+}
+
+void release(buy_queue *bq, sell_queue *sq)
+{
+        buy_tx *i;
+        while (bq->head != NULL) {
+                i= bq->head;
+                bq->head = bq->head->next;
+
+                free(i->buy->ticker);
+                free(i->buy);
+                free(i);
+        }
+
+        sell_tx *j;
+        while (sq->head != NULL) {
+                j = sq->head;
+                sq->head = sq->head->next;
+
+                free(j->sell->ticker);
+                free(j->sell);
+                free(j);
+        }
+}
+
+void print_buys(buy_queue *q)
+{
+        buy_tx *tmp = q->head;
+
+        if (tmp == NULL) {
+                fprintf(stderr, "List is empty");
+                return;
+        }
+
+        while (tmp != NULL) {
+               fprintf(stderr, "Month: %d\n", tmp->buy->t_date->month);
+               printf("%d-%d-%d,%s,%lf,%lf,%lf",
+                               tmp->buy->t_date->year, tmp->buy->t_date->day, 
+                               tmp->buy->t_date->month, tmp->buy->ticker, 
+                               tmp->buy->asset, tmp->buy->value_at_tx,
+                               tmp->buy->fee);
+               tmp = tmp->next;
+        }
 }
 
 int main(int argc, char *argv[])
@@ -244,6 +299,10 @@ int main(int argc, char *argv[])
                 char *file = argv[1];
                 read_csv(file, &buys, &sells);
         }
+
+        print_buys(&buys);
+
+        release(&buys, &sells);
 
         return 0;
 }
