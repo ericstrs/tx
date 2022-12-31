@@ -223,6 +223,7 @@ entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c)
         return i;
 }
 
+// TODO: free memory for all the queues that get created.
 void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 {
         //int rows = sq->rows;
@@ -234,14 +235,13 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
         char *ticker;
         double final_basis;
         double gain;
+        buy_queue *buys_subset;
 
         int i = 1;        
         sell_tx *s = sq->head;
         double *sell_fifo;
         double *head_fifo;
 
-        // TODO: handle freeing this buy_queue
-        //      Determine when it will not be need any more.
         while (s != NULL) {
                 sell_fifo = &s->sell->fifo;
                 if (*sell_fifo <= 0) {
@@ -250,8 +250,7 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                 }
                 ticker = s->sell->ticker;
 
-                // subset buys on ticker
-                buy_queue *buys_subset = subset_buys(bq, ticker);
+                buys_subset = subset_buys(bq, ticker); // subset buys on ticker
                 buy_tx *first = buys_subset->head; // get head of queue
                 head_fifo = &first->buy->fifo;
 
@@ -276,7 +275,6 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         // free memory
                         free(e->ticker);
                         free(e);
-                        //free(buys_subset);
 
                         s = s->next;
                         continue;
@@ -298,10 +296,10 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         // free memory
                         free(e->ticker);
                         free(e);
-                        //free(buys_subset);
 
                         *head_fifo = *head_fifo - *sell_fifo;
                         sell_fifo = 0;
+
                         s = s->next;
                         continue;
                 }
@@ -326,12 +324,12 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         // free memory
                         free(e->ticker);
                         free(e);
-                        //free(buys_subset);
 
                         s = s->next;
                         continue;
                 }
         }
+        //free(buys_subset); // NOTE: don't think this frees every subset queue.
 }
 
 // read csv data and put into stuct
