@@ -32,8 +32,8 @@ typedef struct sell_tx {
 typedef struct {
         double asset;
         char *ticker;
-        date date_acquired;
-        date date_sold;
+        date *date_acquired;
+        date *date_sold;
         double proceeds;
         double cost_basis;
         double net_gain;
@@ -59,7 +59,7 @@ void enqueue_sell(sell_queue *s, sell_tx *tx) ;
 void dequeue_sell(sell_queue *s);
 sell_tx* create_sell_tx(tx *s);
 tx* create_tx(date *d, char *t, double a, double val, double fee);
-entry* create_entry(double a, char *t, date aq, date sold, double p, double c);
+entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c);
 void create_entries(buy_queue *bq, sell_queue *sq, char *file);
 
 buy_queue* init_buy_queue()
@@ -222,16 +222,17 @@ void print_entry(entry *e, char *file)
         }
 
        fprintf(out,"%lf,%s,%d/%d/%d,%d/%d/%d,%lf,%lf,%lf\n",
-                       e->asset, e->ticker, e->date_acquired.month, 
-                       e->date_acquired.day, e->date_acquired.year, 
-                       e->date_sold.month, e->date_sold.day, e->date_sold.year,
+                       e->asset, e->ticker, e->date_acquired->month, 
+                       e->date_acquired->day, e->date_acquired->year, 
+                       e->date_sold->month, e->date_sold->day, e->date_sold->year,
                        e->proceeds, e->cost_basis, e->net_gain);
-        
+       printf("printed: %s\n", e->ticker); 
 }
 
 // returns a copy of a buy transction
 buy_tx* copy_buy(buy_tx *b)
 {
+        //printf("TEST: %d\n", b->buy->t_date->month);
         date *d = create_date(b->buy->t_date->year,
                         b->buy->t_date->day,
                         b->buy->t_date->month);
@@ -251,6 +252,7 @@ buy_queue* subset_buys(buy_queue *bq, char *t)
         }
 
         buy_tx *i = copy_buy(bq->head);
+        //printf("TESTED\n");
 
         //printf("bq->head->buy->fifo: %lf\n", bq->head->buy->fifo);
         //printf("i.buy->fifo: %lf", i.buy->fifo);
@@ -265,7 +267,7 @@ buy_queue* subset_buys(buy_queue *bq, char *t)
         return bq;
 }
 
-entry* create_entry(double a, char *t, date aq, date sold, double p, double c)
+entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c)
 {
         entry *i = malloc(sizeof(entry));
         i->asset = a;
@@ -281,7 +283,7 @@ entry* create_entry(double a, char *t, date aq, date sold, double p, double c)
 
 void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 {
-        int rows = sq->rows;
+        //int rows = sq->rows;
         double *buy_fifo;
         double asset; 
         date acquired; // Need to make these a pointer? so assigment works?
@@ -293,10 +295,17 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 
         int i = 1;        
         sell_tx *s = sq->head;
-        double *sell_fifo = &s->sell->fifo;
+        double *sell_fifo;
         double *head_fifo;
-        while (*sell_fifo > 0 && !(i > rows)) {
+        while (s != NULL) {
+                sell_fifo = &s->sell->fifo;
+                if (*sell_fifo <= 0) {
+                        s = s->next;
+                        continue;
+                }
                 ticker = s->sell->ticker;
+
+                //printf("month: %d\n", s->sell->t_date->month);
 
                 // subset buys on ticker
                 buy_queue *buys_subset = subset_buys(bq, ticker);
@@ -319,7 +328,7 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 
                         // create entry with fields
                         entry *e = create_entry(asset, ticker, 
-                                        acquired, sold, proceeds, final_basis);
+                                        &acquired, &sold, proceeds, final_basis);
                         // fprintf entry to file
                         print_entry(e, file);
 
@@ -328,9 +337,57 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         free(e);
                         //free(entry_queue);
                         free(buys_subset);
+                        s = s->next;
+                        continue;
                 }
-                // set s to next sell
-                //
+                if (*sell_fifo < *head_fifo) {
+                        asset = *sell_fifo;
+                        acquired = *first->buy->t_date;
+                        sold = *s->sell->t_date;
+                        proceeds = s->sell->value_at_tx * asset;
+                        final_basis = first->cost_basis * asset;
+
+                        // create entry with fields
+                        entry *e = create_entry(asset, ticker, 
+                                        &acquired, &sold, proceeds, final_basis);
+                        // fprintf entry to file
+                        print_entry(e, file);
+
+                        // free memory
+                        free(e->ticker);
+                        free(e);
+                        free(buys_subset);
+
+                        *head_fifo = *head_fifo - *sell_fifo;
+                        sell_fifo = 0;
+                        s = s->next;
+                        continue;
+                }
+                if (*sell_fifo == *head_fifo) {
+                        asset = *sell_fifo;
+                        acquired = *first->buy->t_date;
+                        sold = *s->sell->t_date;
+                        proceeds = s->sell->value_at_tx * asset;
+                        final_basis = first->cost_basis * asset;
+
+                        // create entry with fields
+                        entry *e = create_entry(asset, ticker, 
+                                        &acquired, &sold, proceeds, final_basis);
+
+                        sell_fifo = 0;
+                        head_fifo = 0;
+
+                        // fprintf entry to file
+                        print_entry(e, file);
+
+                        // free memory
+                        free(e->ticker);
+                        free(e);
+                        free(buys_subset);
+
+                        s = s->next;
+                        continue;
+                }
         }
 }
 
