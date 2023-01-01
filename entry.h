@@ -45,7 +45,6 @@ typedef struct {
 typedef struct {
         struct sell_tx *head;
         struct sell_tx *tail;
-        int rows;
 } sell_queue;
 
 date* create_date(int year, int day, int month);
