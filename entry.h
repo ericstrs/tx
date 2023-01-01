@@ -15,6 +15,7 @@ typedef struct {
 
 typedef struct buy_tx {
         tx *buy;
+        double *b_fifo;
         double cost_basis;
         struct buy_tx *next;
 } buy_tx;
