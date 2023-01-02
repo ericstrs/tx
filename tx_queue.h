@@ -27,33 +27,21 @@ typedef struct sell_tx {
 } sell_tx;
 
 typedef struct {
-        double asset;
-        char *ticker;
-        date *date_acquired;
-        date *date_sold;
-        double proceeds;
-        double cost_basis;
-        double net_gain;
-} entry;
-
-typedef struct {
         struct buy_tx *head;
         struct buy_tx *tail;
 } buy_queue;
-
 
 typedef struct {
         struct sell_tx *head;
         struct sell_tx *tail;
 } sell_queue;
 
-date* create_date(int year, int day, int month);
-buy_tx* create_buy_tx(tx *b);
-void enqueue_buy(buy_queue *b, buy_tx *tx) ;
+buy_queue* init_buy_queue();
+sell_queue* init_sell_queue();
+void enqueue_buy(buy_queue *b, buy_tx *tx);
 void dequeue_buy(buy_queue *b);
-void enqueue_sell(sell_queue *s, sell_tx *tx) ;
+void enqueue_sell(sell_queue *s, sell_tx *tx);
 void dequeue_sell(sell_queue *s);
-sell_tx* create_sell_tx(tx *s);
-tx* create_tx(date *d, char *t, double a, double val, double fee);
-entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c);
-void create_entries(buy_queue *bq, sell_queue *sq, char *file);
+void release(buy_queue *bq, sell_queue *sq);
+void print_sells(sell_queue *q);
+void print_buys(buy_queue *q);

@@ -1,25 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "entry.h"
 
-buy_queue* init_buy_queue()
-{
-        buy_queue *b = malloc(sizeof(buy_queue));
-        b->head = NULL;
-        b->tail = NULL;
+#include "tx_queue.h"
 
-        return b;
-}
-
-sell_queue* init_sell_queue()
-{
-        sell_queue *s = malloc(sizeof(sell_queue));
-        s->head = NULL;
-        s->tail = NULL;
-
-        return s;
-}
+typedef struct {
+        double asset;
+        char *ticker;
+        date *date_acquired;
+        date *date_sold;
+        double proceeds;
+        double cost_basis;
+        double net_gain;
+} entry;
 
 date* create_date(int year, int day, int month)
 {
@@ -30,85 +23,6 @@ date* create_date(int year, int day, int month)
         i->month = month;
 
         return i;
-}
-
-// add a buy tansaction to the buy queue
-void enqueue_buy(buy_queue *b, buy_tx *tx) 
-{
-        // if the queue is empty
-        if (b->tail != NULL) {
-                b->tail->next = tx;
-        }
-        b->tail = tx;
-
-        // if tx first in the queue
-        if (b->head == NULL) {
-                b->head = tx;
-        }
-}
-
-// remove the first buy transation from the buy queue
-void dequeue_buy(buy_queue *b)
-{
-        // if the queue is empty
-        if (b->head == NULL) {
-                fprintf(stderr, "Queue is empty");
-                return;
-        }
-
-        buy_tx *tmp = b->head;
-
-        printf("old head: %lf\n", b->head->buy->asset);
-        b->head = b->head->next;
-        if (b->head = NULL) {
-                b->tail = NULL;
-        }
-
-        printf("freeing buy ticker: %s\n", tmp->buy->ticker);
-        free(tmp->buy->ticker);
-        printf("freeing tmp->buy\n");
-        free(tmp->buy);
-        printf("freeing tmp\n");
-        free(tmp);
-}
-
-// add a sell tansaction to the sell queue
-void enqueue_sell(sell_queue *s, sell_tx *tx) 
-{
-        // if the queue is empty
-        if (s->tail != NULL) {
-                s->tail->next = tx;
-        }
-        s->tail = tx;
-
-        // if tx is first in the queue
-        if (s->head == NULL) {
-                s->head = tx;
-        }
-}
-
-// remove the first sell transation from the sell queue
-void dequeue_sell(sell_queue *s)
-{
-        // if the queue is empty
-        if (s->head == NULL) {
-                fprintf(stderr, "Sell queue is empty");
-                return;
-        }
-
-        sell_tx *tmp = s->head;
-
-        s->head = s->head->next;
-        if (s->head = NULL) {
-                s->tail = NULL;
-        }
-
-        printf("freeing sell ticker: %s\n", tmp->sell->ticker);
-        free(tmp->sell->ticker);
-        printf("freeing tmp->sell\n");
-        free(tmp->sell);
-        printf("freeing tmp\n");
-        free(tmp);
 }
 
 // create a buy transaction
@@ -244,17 +158,11 @@ buy_queue* subset_buys(buy_queue *bq, char *t)
         return subset;
 }
 
-// TODO: free memory for all the queues that get created.
 void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 {
-        double *buy_fifo;
-        double asset; 
-        date acquired;
-        date sold;
-        double proceeds;
+        double asset, proceeds, final_basis, gain;
+        date acquired, sold;
         char *ticker;
-        double final_basis;
-        double gain;
 
         FILE *out;
         if (!(out = fopen(file, "w"))) {
@@ -263,8 +171,7 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
         }
 
         buy_queue *buys_subset;
-        double *sell_fifo;
-        double *head_fifo;
+        double *buy_fifo, *sell_fifo, *head_fifo;
         sell_tx *s = sq->head;
 
         while (s != NULL) {
@@ -287,7 +194,7 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 
                         acquired = *first->buy->t_date;
                         sold = *s->sell->t_date;
-                        proceeds = s->sell->value_at_tx * asset;
+                        proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
                         final_basis = first->cost_basis * asset;
 
                         // create entry with fields
@@ -307,8 +214,11 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         asset = *sell_fifo;
                         acquired = *first->buy->t_date;
                         sold = *s->sell->t_date;
-                        proceeds = s->sell->value_at_tx * asset;
+                        proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
                         final_basis = first->cost_basis * asset;
+
+                        *head_fifo = *head_fifo - *sell_fifo;
+                        *sell_fifo = 0;
 
                         // create entry with fields
                         entry *e = create_entry(asset, ticker, 
@@ -321,9 +231,6 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         free(e);
                         release_subset(buys_subset);
 
-                        *head_fifo = *head_fifo - *sell_fifo;
-                        *sell_fifo = 0;
-
                         s = s->next;
                         continue;
                 }
@@ -331,15 +238,15 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         asset = *sell_fifo;
                         acquired = *first->buy->t_date;
                         sold = *s->sell->t_date;
-                        proceeds = s->sell->value_at_tx * asset;
+                        proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
                         final_basis = first->cost_basis * asset;
+
+                        *sell_fifo = 0;
+                        *head_fifo = 0;
 
                         // create entry with fields
                         entry *e = create_entry(asset, ticker, 
                                         &acquired, &sold, proceeds, final_basis);
-
-                        *sell_fifo = 0;
-                        *head_fifo = 0;
 
                         // fprintf entry to file
                         print_entry(e, out);
@@ -365,30 +272,21 @@ void read_csv(char *file, buy_queue *bq, sell_queue *sq)
                 return;
         }
 
-        int count = 0;
-        int year;
-        int day;
-        int month;
+        int year, day, month, cols;
+        double asset, val, fee;
         char ticker[4];
-        double asset;
         char action[4];
-        double val;
-        double fee;
-        int cols;
 
-        do {
-               cols = fscanf(in, "%d-%d-%d,%4[^,],%lf,%4[^,],%lf,%lf\n",
-                               &year, &day, &month,
-                               ticker, &asset, action,
-                               &val, &fee);
+        while (!feof(in)) {
+                cols = fscanf(in, "%d-%d-%d,%4[^,],%lf,%4[^,],%lf,%lf\n",
+                                &year, &day, &month,
+                                ticker, &asset, action,
+                                &val, &fee);
 
-               if (cols == 8) {
-                       ++count;
-               }
-               if (cols != 8 && !feof(in)) {
-                       fprintf(stderr, "Incorrect format.\n");
-                       return;
-               }
+                if (cols != 8 && !feof(in)) {
+                        fprintf(stderr, "Incorrect format.\n");
+                        return;
+                }
 
                 date *d = create_date(year, day, month);
                 tx *t = create_tx(d, ticker, asset, val, fee);
@@ -403,75 +301,10 @@ void read_csv(char *file, buy_queue *bq, sell_queue *sq)
                         enqueue_sell(sq, s);
                         continue;
                 }
-        } while (!feof(in));
+        }
 
         fclose(in);
         return;
-}
-
-// dequeue every tx in given queues
-void release(buy_queue *bq, sell_queue *sq)
-{
-
-        buy_tx *b = bq->head;
-        while (b != NULL) {
-                buy_tx *tmp = b;
-                free(tmp->buy->ticker);
-                free(tmp->buy->t_date);
-                free(tmp->buy);
-                free(tmp);
-                b = b->next;
-        }
-        //free(bq);
-
-        sell_tx *s = sq->head;
-        while (s != NULL) {
-                sell_tx *s_tmp = s;
-                free(s_tmp->sell->ticker);
-                free(s_tmp->sell->t_date);
-                free(s_tmp->sell);
-                free(s_tmp);
-                s = s->next;
-        }
-        //free(sq);
-}
-
-void print_buys(buy_queue *q)
-{
-        buy_tx *tmp = q->head;
-        if (tmp == NULL) {
-                fprintf(stderr, "Buy queue is empty\n");
-                return;
-        }
-
-        printf("BUYS:\n");
-        while (tmp != NULL) {
-               printf("%d-%d-%d,%s,%.1lf,%.1lf,%.1lf\n",
-                               tmp->buy->t_date->year, tmp->buy->t_date->day, 
-                               tmp->buy->t_date->month, tmp->buy->ticker, 
-                               tmp->buy->asset, tmp->buy->value_at_tx,
-                               tmp->buy->fee);
-               tmp = tmp->next;
-        }
-}
-
-void print_sells(sell_queue *q)
-{
-        sell_tx *tmp = q->head;
-        if (tmp == NULL) {
-                fprintf(stderr, "Sell queue is empty\n");
-                return;
-        }
-
-        printf("SELLS:\n");
-        while (tmp != NULL) {
-               printf("%d-%d-%d,%s,%.1lf,%.1lf,%.1lf\n",
-                               tmp->sell->t_date->year, tmp->sell->t_date->day, 
-                               tmp->sell->t_date->month, tmp->sell->ticker, 
-                               tmp->sell->asset, tmp->sell->value_at_tx,
-                               tmp->sell->fee);
-               tmp = tmp->next;
-        }
 }
 
 int main(int argc, char *argv[])
@@ -490,12 +323,9 @@ int main(int argc, char *argv[])
         print_buys(buys);
         print_sells(sells);
 
-        // create entries
         create_entries(buys, sells, out);
 
         release(buys, sells); 
-        free(buys);
-        free(sells);
 
         return 0;
 }
