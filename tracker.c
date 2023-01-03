@@ -82,8 +82,14 @@ void release_subset(buy_queue *bq)
         free(bq);
 }
 
-void print_entry(entry *e, FILE *out)
+void print_entry(entry *e, char *file)
 {
+        FILE *out;
+        if (!(out = fopen(file, "w"))) {
+                fprintf(stderr, "Can't open out \"%s\" file.", file);
+                return;
+        }
+
         if (e == NULL) {
                 fprintf(stderr, "Entry is empty\n");
                 return;
@@ -141,7 +147,7 @@ buy_queue* subset_buys(buy_queue *bq, char *t)
         buy_tx *i;
         buy_tx *tmp = bq->head;
 
-        // traverse bq
+        // traverse bq to get buys fifo left and matching ticker
         while (tmp != NULL) {
                 i = copy_buy(tmp);
                 if (*i->b_fifo > 0 && strcmp(t, i->buy->ticker) == 0) {
@@ -161,17 +167,10 @@ buy_queue* subset_buys(buy_queue *bq, char *t)
 void create_entries(buy_queue *bq, sell_queue *sq, char *file)
 {
         double asset, proceeds, final_basis, gain;
-        date acquired, sold;
-        char *ticker;
-
-        FILE *out;
-        if (!(out = fopen(file, "w"))) {
-                fprintf(stderr, "Can't open out \"%s\" file.", file);
-                return;
-        }
-
-        buy_queue *buys_subset;
         double *buy_fifo, *sell_fifo, *head_fifo;
+        char *ticker;
+        date acquired, sold;
+        buy_queue *buys_subset;
         sell_tx *s = sq->head;
 
         while (s != NULL) {
@@ -180,85 +179,54 @@ void create_entries(buy_queue *bq, sell_queue *sq, char *file)
                         s = s->next;
                         continue;
                 }
-                ticker = s->sell->ticker;
-
+                ticker = s->sell->ticker; // get current sell tx ticker
                 buys_subset = subset_buys(bq, ticker); // subset buys on ticker
-                buy_tx *first = buys_subset->head; // get head of queue
+                buy_tx *first = buys_subset->head; // get head of subset
                 head_fifo = first->b_fifo;
 
+                asset = *sell_fifo;
+                acquired = *first->buy->t_date;
+                sold = *s->sell->t_date;
                 if (*sell_fifo > *head_fifo) {
-                        asset = *sell_fifo;
                         *sell_fifo = *sell_fifo - *head_fifo;
-                        asset = asset - *sell_fifo;
                         *head_fifo = 0;
 
-                        acquired = *first->buy->t_date;
-                        sold = *s->sell->t_date;
+                        asset = asset - *sell_fifo;
                         proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
+                        s->sell->fee = 0;
                         final_basis = first->cost_basis * asset;
-
-                        // create entry with fields
-                        entry *e = create_entry(asset, ticker, 
-                                        &acquired, &sold, proceeds, final_basis);
-                        // fprintf entry to file
-                        print_entry(e, out);
-
-                        // free memory
-                        free(e->ticker);
-                        free(e);
-                        release_subset(buys_subset);
-
-                        continue;
                 }
-                if (*sell_fifo < *head_fifo) {
-                        asset = *sell_fifo;
-                        acquired = *first->buy->t_date;
-                        sold = *s->sell->t_date;
+                else if (*sell_fifo < *head_fifo) {
                         proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
+                        s->sell->fee = 0;
                         final_basis = first->cost_basis * asset;
 
                         *head_fifo = *head_fifo - *sell_fifo;
                         *sell_fifo = 0;
 
-                        // create entry with fields
-                        entry *e = create_entry(asset, ticker, 
-                                        &acquired, &sold, proceeds, final_basis);
-                        // fprintf entry to file
-                        print_entry(e, out);
-
-                        // free memory
-                        free(e->ticker);
-                        free(e);
-                        release_subset(buys_subset);
-
                         s = s->next;
-                        continue;
                 }
-                if (*sell_fifo == *head_fifo) {
-                        asset = *sell_fifo;
-                        acquired = *first->buy->t_date;
-                        sold = *s->sell->t_date;
+                else if (*sell_fifo == *head_fifo) {
                         proceeds = (s->sell->value_at_tx * asset) - s->sell->fee;
+                        s->sell->fee = 0;
                         final_basis = first->cost_basis * asset;
 
                         *sell_fifo = 0;
                         *head_fifo = 0;
 
-                        // create entry with fields
-                        entry *e = create_entry(asset, ticker, 
-                                        &acquired, &sold, proceeds, final_basis);
-
-                        // fprintf entry to file
-                        print_entry(e, out);
-
-                        // free memory
-                        free(e->ticker);
-                        free(e);
-                        release_subset(buys_subset);
-
                         s = s->next;
-                        continue;
                 }
+                // create entry with fields
+                entry *e = create_entry(asset, ticker,
+                        &acquired, &sold, proceeds, final_basis);
+
+                // print entry to file
+                print_entry(e, file);
+
+                // free memory
+                free(e->ticker);
+                free(e);
+                release_subset(buys_subset);
         }
         fclose(out);
 }
