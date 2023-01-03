@@ -1,10 +1,13 @@
-# Transaction Tracker
+# Transaction tracker
 
-Transaction tracker and portfolio manager.
+FIFO transaction tracker and portfolio manager.
 
-## TODO
+* Fees
+  * Buying fees are added to cost basis.
+  * Selling fees are subtracted from total proceeds once.
 
-* [] when you sell, if you encounter a new ticker, then check do see if there exists an early buy with that ticker (of greater asset size).
-* [] sort the stack by date
-* [] combine buy and sell csv file
+## Progress
+
+* [X] combine buy and sell csv file
+* [] catch signals to release allocated memory.
 
