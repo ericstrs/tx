@@ -102,6 +102,7 @@ void free_tx(tx *t)
 {
         free(t->ticker);
         free(t->t_date);
+        free(t);
 }
 
 /*
@@ -114,37 +115,43 @@ void transfer(buy_queue *bq, tx *t, FILE *out)
                 fprintf(stderr, "Buy queue is empty.\n");
         }
         if (t->fee == 0) {
-                /* just create an entry.
-                 * this is only useful if you attach
-                 * location data. */
+                /* just create an entry. This is only useful if you
+                 * attach location data.
+                 */
                 return;
         }
 
         buy_tx *b = bq->head;
-        while (b != NULL ){
-                // since this is being ran before entries, the buys fifo
-                // will always be greater than 0.
+        while (t->fifo > 0){
+                if (b == NULL) {
+                        fprintf(stderr, "Error: there is no %.3lf %s to transfer\n", t->fifo, t->ticker);
+                        break;
+                }
                 if (b->buy->fifo > 0 && strcmp(t->ticker, b->buy->ticker) == 0) {
                         // update transfer asset
                         double fee_to_asset = t->fee / t->value_at_tx;
                         t->asset = t->asset - fee_to_asset;
-                        // recalculate matching buy's cost basis
+                        t->fifo -= b->buy->asset;
+
+                        /* AGRESSIVE APPROACH. Unfinished: would need to 
+                         * modify buy basis with fee ticker *not*
+                         * the basis for buy with transaction ticker.
+                         *
+                        //recalculate matching buy's cost basis
                         b->cost_basis = (b->buy->value_at_tx * b->buy->asset + 
                                         b->buy->fee + t->fee) / b->buy->asset;
-                        entry *e = create_entry(t->asset, t->ticker, t->t_date, t->t_date, 0, 0);
+                         */
+
+                        entry *e = create_entry(t->asset, t->ticker, b->buy->t_date, t->t_date, 0, 0);
                         print_entry(e, out);
+                        free(e->ticker);
                         free(e);
-                        free_tx(t);
-                        return;
                 }
                 b = b->next; 
         }
-
-        fprintf(stderr, "Error: there is no %s to transfer", b->buy->ticker);
-        free_tx(t);
 }
 
-void sell(buy_queue *bq, sell_queue *sq, sell_tx *s, FILE *out)
+void sell(buy_queue *bq, sell_tx *s, FILE *out)
 {
         if (bq->head == NULL) {
                 fprintf(stderr, "Buy queue is empty.\n");
@@ -204,7 +211,7 @@ void sell(buy_queue *bq, sell_queue *sq, sell_tx *s, FILE *out)
 }
 
 // read csv data and put into stuct
-void read_csv(FILE *in, FILE *out, buy_queue *bq, sell_queue *sq)
+void read_csv(FILE *in, FILE *out, buy_queue *bq)
 {
         int year, day, month, cols;
         double asset, val, fee;
@@ -232,12 +239,14 @@ void read_csv(FILE *in, FILE *out, buy_queue *bq, sell_queue *sq)
                 }
                 if (strcmp("sell", action) == 0) {
                         sell_tx *s = create_sell_tx(t);
-                        //enqueue_sell(sq, s);
-                        sell(bq, sq, s, out);
+                        sell(bq, s, out);
+                        free_tx(s->sell);
+                        free(s);
                         continue;
                 }
                 if (strcmp("transfer", action) == 0) {
                         transfer(bq, t, out);
+                        free_tx(t);
                         continue;
                 }
         }
@@ -247,7 +256,6 @@ void read_csv(FILE *in, FILE *out, buy_queue *bq, sell_queue *sq)
 int main(int argc, char *argv[])
 {
         buy_queue *buys = init_buy_queue();
-        sell_queue *sells = init_sell_queue();
 
         char *in, *out;
         FILE *i, *o;
@@ -263,15 +271,13 @@ int main(int argc, char *argv[])
                         return 1;
                 }
                 // read in tx from csv
-                read_csv(i, o, buys, sells);
+                read_csv(i, o, buys);
         }
 
         print_buys(buys);
-        print_sells(sells);
 
-        //create_entries(buys, sells, o);
+        release(buys); 
 
-        release(buys, sells); 
         fclose(i);
         fclose(o);
 

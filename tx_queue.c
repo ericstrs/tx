@@ -98,7 +98,7 @@ void dequeue_sell(sell_queue *s)
 }
 
 // dequeue every tx in given queues
-void release(buy_queue *bq, sell_queue *sq)
+void release(buy_queue *bq)
 {
 
         buy_tx *b = bq->head;
@@ -112,6 +112,7 @@ void release(buy_queue *bq, sell_queue *sq)
         }
         free(bq);
 
+        /*
         sell_tx *s = sq->head;
         while (s != NULL) {
                 sell_tx *s_tmp = s;
@@ -122,6 +123,7 @@ void release(buy_queue *bq, sell_queue *sq)
                 s = s->next;
         }
         free(sq);
+        */
 }
 
 void print_sells(sell_queue *q)

@@ -3,10 +3,9 @@
 FIFO transaction tracker and portfolio manager.
 
 * Fees
-  * Takes the aggressive approach: any gas fees related to investments increase the cost basis of the same asset that was used for gas.
-    * What if is USD?
+  * Takes the conservative approach: convert transfer USD fee into transfers corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with the fees.
   * Buying fees are added to cost basis.
-  * Selling fees are subtracted from total proceeds once.
+  * Selling fees are subtracted from total proceeds only one time.
 
 ## Progress
 

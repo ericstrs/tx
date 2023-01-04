@@ -42,6 +42,6 @@ void enqueue_buy(buy_queue *b, buy_tx *tx);
 void dequeue_buy(buy_queue *b);
 void enqueue_sell(sell_queue *s, sell_tx *tx);
 void dequeue_sell(sell_queue *s);
-void release(buy_queue *bq, sell_queue *sq);
+void release(buy_queue *bq);
 void print_sells(sell_queue *q);
 void print_buys(buy_queue *q);
