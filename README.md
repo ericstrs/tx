@@ -11,10 +11,11 @@ Accepts CSV file to read in transactions.
 
 ## Progress
 
-* [X] combine buy and sell csv file
-* [] create csv files for long term and short term gains
+* [x] combine buy and sell CSV file
+* [] create CSV files for long term and short term gains
 * [] catch signals to release allocated memory.
 * [] if only one arg (out file), then prompt user input and write to file
 * [] start thinking about portfolio: creating `asset` struct that hold information like total asset and worth.
-* [] generate csv files with a header for transactions.
+* [] generate CSV files with a header for transactions.
+* [] sort the CSV file by date before creating entries CSV file.
 
