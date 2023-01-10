@@ -271,6 +271,35 @@ int create_exchange(tx *t, buy_queue *bq, char *ticker, double to_val, FILE *out
         free(s);
 }
 
+void portfolio(buy_queue *bq)
+{
+        buy_tx *b = bq->head;
+        buy_tx *tmp;
+        char *ticker;
+        float total;
+        while (b != NULL) {
+                if (b->buy->fifo == 0) {
+                        b = b->next;
+                        continue;
+                }
+                total = 0;
+                tmp = b;
+                ticker = b->buy->ticker;
+                // traverse the rest of the queue
+                while (tmp != NULL) {
+                        int i = strncmp(tmp->buy->ticker, ticker, 4);
+                        if (tmp->buy->fifo && i == 0) {
+                                // add matching assets to total
+                                total += tmp->buy->fifo;
+                                tmp->buy->fifo = 0;
+                        }
+                        tmp = tmp->next;
+                }
+                printf("%s, %lf\n", ticker, total);
+                b = b->next;
+        }
+}
+
 // read csv data and put into stuct
 int read_csv(FILE *in, FILE *out, buy_queue *bq)
 {
@@ -332,6 +361,7 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                         continue;
                 }
         }
+        portfolio(bq);
         return 0;
 }
 
@@ -353,7 +383,6 @@ int main(int argc, char *argv[])
 
         char *in, *out;
         FILE *i, *o;
-
 
         in = argv[1];
         if (!(i = fopen(in, "r")))
