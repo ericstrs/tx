@@ -5,17 +5,17 @@ FIFO transaction tracker and portfolio manager.
 Accepts CSV file to read in transactions.
 
 * Fees
-  * Takes the conservative approach: convert transfer USD fee into transfers corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with the fees.
+  * Currently implements the conservative approach: convert transfer fee (in USD) into the transfers corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with the transaction fees.
   * Buying fees are added to cost basis.
-  * Selling fees are subtracted from total proceeds only one time.
+  * Selling fees are subtracted from total proceeds once.
 
 ## Progress
 
-* [x] combine buy and sell CSV file
-* [] create CSV files for long term and short term gains
-* [] catch signals to release allocated memory.
-* [] if only one arg (out file), then prompt user input and write to file
-* [] start thinking about portfolio: creating `asset` struct that hold information like total asset and worth.
-* [] generate CSV files with a header for transactions.
-* [] sort the CSV file by date before creating entries CSV file.
+* [x] Combine buy and sell CSV file.
+* [X] Allow for user interactive prompt and perform validation.
+* [] Catch signals to release allocated memory.
+* [] Create CSV files for long and short term gains/losses.
+* [] Sort the CSV file by date before creating entries CSV file.
+* [] Generate buy, sell, transfer, and exchange CSV files with a header.
+* [] Portfolio.
 

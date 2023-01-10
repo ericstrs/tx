@@ -4,6 +4,7 @@
 #include <time.h>
 
 void replace_newline(char *m);
+void clear_input_buff(char *m);
 
 void check_exit(char *m) {
         if (strncasecmp(m, "q\n", 1) == 0 || strncasecmp(m, "quit\n", 4) == 0){
@@ -12,20 +13,45 @@ void check_exit(char *m) {
         }
 }
 
-void prompt_str(char *f, size_t len, char *m)
+int check_enter(char *m) {
+        if (strncmp(m, "\n", 1) == 0) {
+                fprintf(stderr, "\tERROR: must enter a value.\n");
+                return 1;
+        }
+        return 0;
+}
+
+int prompt_str(char *f, size_t len, char *m)
 {
         printf("%s", m);
         fgets(f, len, stdin);
+
         check_exit(f);
+
+        if (check_enter(f)) {
+                return 1;
+        }
+
+        clear_input_buff(f);
         replace_newline(f);
-        printf("STR: %s\n", f);
+
+        return 0;
 }
 
+void clear_input_buff(char *m) {
+        int i = strlen(m) - 1;
+        // check if the string contains a newline
+        if (m[i] != '\n') {
+                // consume characters up to '\n'
+                while((getchar() != '\n'));
+        }
+}
+
+/* replace '\n' with ',' for csv output */
 void replace_newline(char *m) {
         int i;
         for (i = 0; *(m+i) != '\0'; i++) {
         }
-        // replace newline with `,`
         m[i - 1] = ',';
 }
 
@@ -38,21 +64,21 @@ int check_date(char *date, int *d) {
         char *end_ptr = NULL;
         int year = strtol(date, &end_ptr, 10);
         if (year < 1900) {
-                printf("\t\tERROR: year must be past 1900.\n");
+                fprintf(stderr, "\tERROR: year must be past 1900.\n");
                 return 1;
         }
 
         char *p = ++end_ptr;
         int day = strtol(p, &end_ptr, 10);
         if (0 > day || day > 31) {
-                printf("\t\tERROR: day must be in the interval [1,31]\n");
+                fprintf(stderr, "\tERROR: day must be in the interval [1,31]\n");
                 return 1;
         }
 
         p = ++end_ptr;
         int month = strtol(p, &end_ptr, 10);
         if (0 > month || month > 12) {
-                printf("\t\tERROR: month must be in the interval [1,12]\n");
+                fprintf(stderr, "\tERROR: month must be in the interval [1,12]\n");
                 return 1;
         }
                                         
@@ -66,17 +92,14 @@ int check_date(char *date, int *d) {
 int check_ticker(char *t)
 {
         int i = strlen(t) - 1;
-        printf("TICKER: %s\n", t);
-        printf("strlen(t) - 1: %d\n", i);
         if (0 < i && i > 4) {
-                printf("SHOULD BE TICK EERR\n");
+                fprintf(stderr, "\tERROR: ticker length must be in the interval [1,4]\n");
                 return 1;
         }
-                printf("NO TICK EERR\n");
         return 0;
 }
 
-void lower_to_upper(char *m)
+void make_upper(char *m)
 {
         for (int i = 0; m[i] != '\0'; i++) {
                 if (m[i] >= 'a' && m[i] <= 'z') {
@@ -90,7 +113,7 @@ int check_double(char *m)
         char *end_ptr = NULL;
         float asset = strtof(m, &end_ptr);
         if (asset < 0) {
-                printf("\t\tERROR: asset must be a positive number.\n");
+                fprintf(stderr, "\tERROR: asset must be a positive number.\n");
                 return 1;
         }
         return 0;
@@ -100,10 +123,13 @@ void prompt_date(int *d)
 {
         char date[12];
         for (;;) {
-                prompt_str(date, 12, "Enter date (press enter for todays date): ");
+                printf("Enter date (press enter for today): ");
+                fgets(date, 12, stdin);
+                check_exit(date);
+                clear_input_buff(date);
 
                 /* default is todays date */
-                if (strncmp(date, ",", 1) == 0) {
+                if (strncmp(date, "\n", 1) == 0) {
                         time_t t;
                         time(&t);
                         struct tm local = *localtime(&t);
@@ -112,8 +138,9 @@ void prompt_date(int *d)
                         d[2] = local.tm_mon + 1;
                         break;
                 }
+                // else
                 if (check_date(date, d)) {
-                        printf("\t\tERROR: date must be of the form YYYY-MM-DD.\n");
+                        fprintf(stderr, "\tNOTE: date must be of the form YYYY-MM-DD.\n");
                         continue;
                 }
                 break;
@@ -123,13 +150,13 @@ void prompt_date(int *d)
 void prompt_ticker(char *ticker)
 {
         for (;;) {
-                prompt_str(ticker, 8, "Enter ticker: ");
-                if (check_ticker(ticker)) {
-                        printf("\t\tERROR: ticker must have 4 characters.\n");
+                if (prompt_str(ticker, 8, "Enter ticker: ")) {
                         continue;
                 }
-                printf("why no check on: %s\n", ticker);
-                lower_to_upper(ticker);
+                if (check_ticker(ticker)) {
+                        continue;
+                }
+                make_upper(ticker);
                 break;
         }
 }
@@ -137,7 +164,9 @@ void prompt_ticker(char *ticker)
 void prompt_asset(char *asset)
 {
         for (;;) {
-                prompt_str(asset, 16, "Enter asset amount: ");
+                if (prompt_str(asset, 16, "Enter asset amount: ")) {
+                        continue;
+                }
                 if (check_double(asset)) {
                         continue;
                 }
@@ -148,7 +177,9 @@ void prompt_asset(char *asset)
 void prompt_value(char *value)
 {
         for (;;) {
-                prompt_str(value, 16, "Enter asset value at transaction: ");
+                if(prompt_str(value, 16, "Enter asset value at transaction: ")) {
+                        continue;
+                }
                 if (check_double(value)) {
                         continue;
                 }
@@ -158,10 +189,11 @@ void prompt_value(char *value)
 
 void prompt_fee(char *fee)
 {
-        /* NOTE: ensure no trailing `,`. This will cover the `\n`. */
+        /* NOTE: trailing '\n' and leave out ','. */
         for (;;) {
                 printf("Enter transaction fee: ");
                 fgets(fee, 16, stdin);
+                clear_input_buff(fee);
                 if (check_double(fee)) {
                         continue;
                 }
@@ -169,9 +201,6 @@ void prompt_fee(char *fee)
         }
 }
 
-// TODO: need to "flush" data stream.
-// OR, read in the entire line of input, that is the characters up
-// until the null terminator.
 int tx_input(char *entry, FILE *out) {
         int d[] = {0, 0, 0};
         prompt_date(d);
@@ -232,11 +261,10 @@ void user_input(char *out)
                 fprintf(stderr, "Can't open file.\n");
                 return;
         }
+
         const char *actions[] = {"buy", "sell", "transfer", "exchange"};
-        char action[10];
-        char e[64];
-        char *entry = e;
-        int *c, a;
+        char action[10], *entry;
+        int a, *c;
 
         printf("Type q or exit to quit.\n");
         for (;;) {
@@ -268,7 +296,7 @@ void user_input(char *out)
                         fclose(o);
                         exit(0);
                 default:
-                        printf("\t\tERROR: action must be \"buy\", \"sell\", \"transfer\", or \"exchange\".\n");
+                        fprintf(stderr, "\tERROR: action must be \"buy\", \"sell\", \"transfer\", or \"exchange\".\n");
                         continue;
                 };
 
