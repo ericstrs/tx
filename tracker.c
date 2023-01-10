@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include "tx_queue.h"
+#include "input.h"
 
 void free_tx(tx *t);
+void error(char *m);
 
 typedef struct {
         double asset;
@@ -73,8 +79,7 @@ tx* create_tx(date *d, char *t, double a, double val, double fee)
 int print_entry(entry *e, FILE *out)
 {
         if (e == NULL) {
-                fprintf(stderr, "Entry is empty\n");
-                return 1;
+                error("Entry is empty.");
         }
 
        fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1lf\n",
@@ -113,8 +118,7 @@ void free_tx(tx *t)
 int transfer(buy_queue *bq, tx *t, FILE *out)
 {
         if (bq->head == NULL) {
-                fprintf(stderr, "ERROR: Buy queue is empty.\n");
-                return 1;
+                error("Buy queue is empty.");
         }
         if (t->fee == 0) {
                 /* just create an entry. This is only useful if you
@@ -146,8 +150,7 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                          */
 
                         entry *e = create_entry(t->asset, t->ticker, b->buy->t_date, t->t_date, 0, 0);
-                        if (print_entry(e, out))
-                                return 1;
+                        print_entry(e, out);
                         free(e->ticker);
                         free(e);
                 }
@@ -159,8 +162,7 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
 int sell(buy_queue *bq, sell_tx *s, FILE *out)
 {
         if (bq->head == NULL) {
-                fprintf(stderr, "Buy queue is empty.\n");
-                return 1;
+                error("Buy queue is empty.");
         }
 
         buy_tx *b = bq->head;
@@ -206,8 +208,7 @@ int sell(buy_queue *bq, sell_tx *s, FILE *out)
                                 &acquired, &sold, proceeds, final_basis);
 
                         // print entry to file
-                        if (print_entry(e, out))
-                                return 1;
+                        print_entry(e, out);
 
                         // free memory
                         free(e->ticker);
@@ -220,13 +221,13 @@ int sell(buy_queue *bq, sell_tx *s, FILE *out)
 
 int create_exchange(tx *t, buy_queue *bq, char *ticker, double to_val, FILE *out)
 {
+        // create sell
         double proceeds;
         sell_tx *s = create_sell_tx(t);
-        if (sell(bq, s, out)) {
-                return 1;
-        }
+        sell(bq, s, out);
         proceeds = s->proceeds;
 
+        // create buy
         double asset = proceeds / to_val;
         date *d = create_date(t->t_date->year, t->t_date->day, t->t_date->month);
         tx *to = create_tx(d, ticker, asset, to_val, 0);
@@ -248,8 +249,7 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                 cols = fscanf(in, "%8[^,],", action);
 
                 if (cols != 1) {
-                        fprintf(stderr, "Incorrect tx format: first column must be action\n");
-                        return 1;
+                        error("Incorrect tx format: first column must be action");
                 }
 
                 // if the transaction is an exchange/swap
@@ -260,14 +260,12 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                                 &year, &day, &month, ticker, &asset,
                                 &val, to_ticker, &to_val, &fee);
                         if (cols != 9) {
-                                fprintf(stderr, "Incorrect exchange tx format.\n");
-                                return 1;
+                                error("Incorrect exchange tx format.");
                         }
                         date *from_d = create_date(year, day, month);
                         tx *from_t = create_tx(from_d, ticker, asset, val, fee);
 
-                        if (create_exchange(from_t, bq, to_ticker, to_val, out))
-                                return 1;
+                        create_exchange(from_t, bq, to_ticker, to_val, out);
                         continue;
                 }
 
@@ -276,8 +274,7 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                                 ticker, &asset, &val, &fee);
 
                 if (cols != 7) {
-                        fprintf(stderr, "Incorrect format.\n");
-                        return 1;
+                        error("Incorrect format.");
                 }
 
                 date *d = create_date(year, day, month);
@@ -305,34 +302,50 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
         return 0;
 }
 
+void error(char *m)
+{
+        fprintf(stderr, "%s: %s\n", m, strerror(errno));
+        exit(1);
+}
+
+void usage() {
+        error("usage: ./tracker <input.csv> [out.csv]");
+}
+
 int main(int argc, char *argv[])
 {
-        buy_queue *buys = init_buy_queue();
+        if (argc < 2) {
+                usage();
+        }
 
         char *in, *out;
         FILE *i, *o;
-        if (argc > 2) {
-                in = argv[1];
-                if (!(i = fopen(in, "r"))) {
-                        fprintf(stderr, "Can't open out \"%s\" file.", in);
-                        return 1;
-                }
+
+
+        in = argv[1];
+        if (!(i = fopen(in, "r")))
+                error("Can't open input file.");
+
+        switch (argc) {
+        case 2:
+                user_input(in); // prompt user input
+                break;
+        case 3:
                 out = argv[2];
-                if (!(o = fopen(out, "w"))) {
-                        fprintf(stderr, "Can't open out \"%s\" file.", out);
-                        return 1;
-                }
-                // read in buy/sells tx's and exchange tx's from csv
-                if (read_csv(i, o, buys))
-                        return 1;
-        }
+                if (!(o = fopen(out, "w")))
+                        error("Can't open output file.");
+
+                buy_queue *buys = init_buy_queue();
+                read_csv(i, o, buys); // create entries
+                release(buys); 
+                fclose(o);
+                fclose(i);
+                break;
+        default:
+                usage();
+        };
 
         //print_buys(buys);
-
-        release(buys); 
-
-        fclose(i);
-        fclose(o);
 
         return 0;
 }
