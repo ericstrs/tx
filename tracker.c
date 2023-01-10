@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "tx_queue.h"
 #include "input.h"
@@ -20,6 +21,7 @@ typedef struct {
         double proceeds;
         double cost_basis;
         double net_gain;
+        char *term;
 } entry;
 
 date* create_date(int year, int day, int month)
@@ -82,12 +84,39 @@ int print_entry(entry *e, FILE *out)
                 error("Entry is empty.");
         }
 
-       fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1lf\n",
+       fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1lf,%s\n",
                        e->asset, e->ticker, e->date_acquired->month, 
                        e->date_acquired->day, e->date_acquired->year, 
                        e->date_sold->month, e->date_sold->day, e->date_sold->year,
-                       e->proceeds, e->cost_basis, e->net_gain);
+                       e->proceeds, e->cost_basis, e->net_gain, e->term);
        return 0;
+}
+
+/* returns 1 if dates are a year apart and 0 othewise. */
+int get_term(date *b, date *s)
+{
+        struct tm bought = { 0 };
+        bought.tm_isdst = -1;
+        bought.tm_year = b->year;
+        bought.tm_mday = b->day;
+        bought.tm_mon = b->month;
+
+        struct tm sold = { 0 };
+        sold.tm_isdst = -1;
+        sold.tm_year = s->year;
+        sold.tm_mday = s->day;
+        sold.tm_mon = s->month;
+
+        /* TODO: this modifies the `tm` structs. Whenever a field 
+         * is close their max (31 for days and 12 for months) 
+         * they ciricle around to their min. For instance, 
+         * the dates 2023/01/31 and 2024/02/01 does not signal a year.
+         */
+        int seconds = difftime(mktime(&sold), mktime(&bought));
+        if (seconds >= 31536000) {
+                return 1;
+        }
+        return 0;
 }
 
 entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c)
@@ -100,6 +129,10 @@ entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c)
         i->proceeds = p;
         i->cost_basis = c;
         i->net_gain = p - c;
+        i->term = "short";
+        if (get_term(i->date_acquired, i->date_sold)) {
+                i->term = "long";
+        }
 
         return i;
 }

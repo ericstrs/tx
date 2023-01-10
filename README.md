@@ -13,12 +13,14 @@ Accepts CSV file to read in transactions.
 
 * [x] Combine buy and sell CSV files.
 * [X] Allow for user interactive prompt and perform validation.
-* [] Catch signals to release allocated memory.
-* [] Create CSV files for long and short term gains/losses.
-* [] Sort the CSV file by date before creating entries CSV file.
+* [X] Create entry field for long or short term gain/loss.
 * [] Generate buy, sell, transfer, and exchange CSV files with a header.
 * [] Simple portfolio metrics file that is suitable for R.
-* [] Allow env variables to set path to in and out csv files.
-* [] tab completion for options (including when user prompt for `action`).
-* [] Encryption for transaction input data.
+* [] Tab completion for options (including when user prompt for `action`).
+* [] Detect headers for input CSV files.
+* [] Allow env variables to set path to in and out CSV files.
+* [] Sort the CSV file by date before creating entries CSV file.
+* [] Encryption for transaction log file.
+
+**WARNING**: interrupting the interactive prompt will not write any data to the file. To avoid losing large amount of data, you can essential "save" your session by frequently restarting the program.
 
