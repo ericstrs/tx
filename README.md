@@ -26,6 +26,7 @@ Transactions:
 * [x] Combine buy and sell CSV files.
 * [X] Allow for user interactive prompt and perform validation.
 * [X] Create entry field for long or short term gain/loss.
+* [] Print entries within a given year range.
 * [] Tab completion for options (including when user prompt for `action`).
 * [] Detect headers for input CSV files.
 * [] Allow env variables to set path to in and out CSV files.
@@ -33,7 +34,10 @@ Transactions:
 * [] Generate buy, sell, transfer, and exchange CSV files with a header.
 * [] View transactions.
 * [] Encryption for transaction log file.
-
+* [] Add fee asset to transfers. When you encounter a transfer create a sell of that fee asset (only if not USD), which acts of the fee. Therefore, you can set the fees of the transfer and sell transactions to 0.
+  * [] In the short term, at least separate the fee when it is not of the same asset that is being transferred.
+* [] Add "reward" support.
+* [] Add a summary after entry file has been created.
 
 Simple portfolio metrics file that is suitable for R.
 
