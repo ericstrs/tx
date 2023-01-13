@@ -46,6 +46,7 @@ buy_tx* create_buy_tx(tx *b)
         int a = b->asset;
         i->cost_basis = (b->value_at_tx * a + b->fee) / a;
 
+        i->reward = 0;
         i->next = NULL;
 
         return i;
@@ -158,7 +159,7 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                  * attach location data.
                  */
                 fprintf(stderr, "ERROR: Attemping to enter a transfer with a fee of 0.\n");
-                return 1;
+                return 0;
         }
 
         buy_tx *b = bq->head;
@@ -201,7 +202,7 @@ int sell(buy_queue *bq, sell_tx *s, FILE *out)
         buy_tx *b = bq->head;
         while (s->sell->fifo != 0) {
                 if (b == NULL) {
-                        fprintf(stderr, "ERROR: there is not enough %s to sell.\n", s->sell->ticker);
+                        fprintf(stderr, "ERROR: there is not enough %s to sell.%f\n", s->sell->ticker, s->sell->fifo);
                         return 1;;
                 }
 
@@ -257,7 +258,9 @@ int create_exchange(tx *t, buy_queue *bq, char *ticker, double to_val, FILE *out
         // create sell
         double proceeds;
         sell_tx *s = create_sell_tx(t);
-        sell(bq, s, out);
+        if (sell(bq, s, out)) {
+                return 1;
+        }
         proceeds = s->proceeds;
 
         // create buy
@@ -300,42 +303,89 @@ void portfolio(buy_queue *bq)
         }
 }
 
+void create_reward(buy_queue *bq, tx *t)
+{
+        // create a buy tx
+        buy_tx *b = create_buy_tx(t);
+        // set the "reward" field to true;
+        b->reward = 1;
+        // enqueue the buy
+        enqueue_buy(bq, b);
+}
+
+void print_rewards(buy_queue *bq)
+{
+        buy_tx *b = bq->head;
+        buy_tx *tmp;
+        char *ticker;
+        float total = 0;
+        // reward, date, TICKER, asset, val_at_tx, reward_value
+        while (b != NULL) {
+                if (b->reward == 1 && b->buy->fifo > 0) {
+                        double reward_value = b->buy->fifo * b->buy->value_at_tx;
+                        printf("Rewards for the year:\n");
+                        printf("%d-%d-%d,%s,%.1lf,%.1lf,%.1lf\n",
+                                        b->buy->t_date->year, b->buy->t_date->day,
+                                        b->buy->t_date->month, b->buy->ticker,
+                                        b->buy->asset, b->buy->value_at_tx,
+                                        reward_value);
+                        total += reward_value;
+                        b->buy->fifo = 0;
+                }
+                b = b->next;
+        }
+
+        if (total != 0) {
+                printf("Total income: %lf\n", total);
+        }
+}
+
 // read csv data and put into stuct
 int read_csv(FILE *in, FILE *out, buy_queue *bq)
 {
         int year, day, month, cols;
         double asset, val, fee;
-        char ticker[4], action[9];
+        char ticker[6], action[9];
 
+        int line = 0;
         while (!feof(in)) {
                 cols = fscanf(in, "%8[^,],", action);
 
                 if (cols != 1) {
+                        fprintf(stderr, "Line %d\t", line);
+                        printf("ACTION: \"%s\" COLS: %d\n", action, cols);
                         error("Incorrect tx format: first column must be action");
                 }
 
                 // if the transaction is an exchange/swap
                 if (strcmp("exchange", action) == 0) {
-                        char to_ticker[4];
+                        char to_ticker[6];
                         double to_val;
-                        cols = fscanf(in, "%d-%2d-%2d,%4[^,],%lf,%lf,%4[^,],%lf,%lf\n",
+                        cols = fscanf(in, "%d-%2d-%2d,%5[^,],%lf,%lf,%5[^,],%lf,%lf\n",
                                 &year, &day, &month, ticker, &asset,
                                 &val, to_ticker, &to_val, &fee);
+                        //printf("EX TICKER:%s\n", ticker);
                         if (cols != 9) {
+                                fprintf(stderr, "Line %d\t", line);
                                 error("Incorrect exchange tx format.");
                         }
                         date *from_d = create_date(year, day, month);
                         tx *from_t = create_tx(from_d, ticker, asset, val, fee);
 
-                        create_exchange(from_t, bq, to_ticker, to_val, out);
+                        if (create_exchange(from_t, bq, to_ticker, to_val, out)) {
+                                fprintf(stderr, "Line %d\t", line);
+                                error("Incorrect exchange tx format");
+                        }
+                        ++line;
                         continue;
                 }
 
-                cols = fscanf(in, "%d-%2d-%2d,%4[^,],%lf,%lf,%lf\n",
+                cols = fscanf(in, "%d-%2d-%2d,%5[^,],%lf,%lf,%lf\n",
                                 &year, &day, &month,
                                 ticker, &asset, &val, &fee);
 
                 if (cols != 7) {
+                        fprintf(stderr, "Line %d\t", line);
                         error("Incorrect format.");
                 }
 
@@ -345,22 +395,37 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                 if (strcmp("buy", action) == 0) {
                         buy_tx *b = create_buy_tx(t);
                         enqueue_buy(bq, b);
+                        ++line;
                         continue;
                 }
                 if (strcmp("sell", action) == 0) {
                         sell_tx *s = create_sell_tx(t);
-                        if (sell(bq, s, out))
-                                return 1;
+                        if (sell(bq, s, out)) {
+                                fprintf(stderr, "Line %d\t", line);
+                                error("Incorrect sell format");
+                        }
                         free_tx(s->sell);
                         free(s);
+                        ++line;
                         continue;
                 }
                 if (strcmp("transfer", action) == 0) {
-                        transfer(bq, t, out);
+                        if (transfer(bq, t, out)) {
+                                fprintf(stderr, "Line %d\n", line);
+                                error("Incorrect transfer format");
+                        }
                         free_tx(t);
+                        ++line;
+                        continue;
+                }
+                if (strncmp("reward", action,6) == 0) {
+                        create_reward(bq, t);
+                        ++line;
                         continue;
                 }
         }
+        print_rewards(bq); 
+        printf("\nAssets owned:\n");
         portfolio(bq);
         return 0;
 }
