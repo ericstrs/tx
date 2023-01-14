@@ -87,11 +87,11 @@ int print_entry(entry *e, FILE *out)
                 error("Entry is empty.");
         }
 
-       int check = fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1f,%s\n",
+       int check = fprintf(out,"%.8lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.2lf,%.2lf,%.2f,%s\n",
                        e->asset, e->ticker, e->date_acquired->month, 
                        e->date_acquired->day, e->date_acquired->year, 
                        e->date_sold->month, e->date_sold->day, e->date_sold->year,
-                       e->proceeds, e->cost_basis, (double)e->net_gain, e->term);
+                       e->proceeds, e->cost_basis, e->net_gain, e->term);
        if (check == 0) {
                 error("Couldn't print to file");
        }
