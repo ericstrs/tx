@@ -43,8 +43,10 @@ buy_tx* create_buy_tx(tx *b)
         i->buy = b;
 
         // determine the cost basis
-        int a = b->asset;
+        float a = b->asset;
         i->cost_basis = (b->value_at_tx * a + b->fee) / a;
+        //printf("COST: %lf\n", i->cost_basis);
+        //printf("COMPONENTS: val = %lf\tasset = %lf\tfee = %lf\n",b->value_at_tx, a, b->fee);
 
         i->reward = 0;
         i->next = NULL;
@@ -85,15 +87,18 @@ int print_entry(entry *e, FILE *out)
                 error("Entry is empty.");
         }
 
-       fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1lf,%s\n",
+       int check = fprintf(out,"%.1lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.1lf,%.1lf,%.1f,%s\n",
                        e->asset, e->ticker, e->date_acquired->month, 
                        e->date_acquired->day, e->date_acquired->year, 
                        e->date_sold->month, e->date_sold->day, e->date_sold->year,
-                       e->proceeds, e->cost_basis, e->net_gain, e->term);
+                       e->proceeds, e->cost_basis, (double)e->net_gain, e->term);
+       if (check == 0) {
+                error("Couldn't print to file");
+       }
        return 0;
 }
 
-/* returns 1 if dates are a year apart and 0 othewise. */
+/* returns 1 if dates are a year apart and 0 otherwise. */
 int get_term(date *b, date *s)
 {
         struct tm bought = { 0 };
@@ -181,12 +186,12 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                         //recalculate matching buy's cost basis
                         b->cost_basis = (b->buy->value_at_tx * b->buy->asset + 
                                         b->buy->fee + t->fee) / b->buy->asset;
-                         */
 
                         entry *e = create_entry(t->asset, t->ticker, b->buy->t_date, t->t_date, 0, 0);
                         print_entry(e, out);
                         free(e->ticker);
                         free(e);
+                         */
                 }
                 b = b->next; 
         }
@@ -202,7 +207,7 @@ int sell(buy_queue *bq, sell_tx *s, FILE *out)
         buy_tx *b = bq->head;
         while (s->sell->fifo != 0) {
                 if (b == NULL) {
-                        fprintf(stderr, "ERROR: there is not enough %s to sell.%f\n", s->sell->ticker, s->sell->fifo);
+                        fprintf(stderr, "ERROR: there is not enough %s to sell %f\n", s->sell->ticker, s->sell->fifo);
                         return 1;;
                 }
 
