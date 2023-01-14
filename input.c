@@ -92,8 +92,8 @@ int check_date(char *date, int *d) {
 int check_ticker(char *t)
 {
         int i = strlen(t) - 1;
-        if (0 < i && i > 4) {
-                fprintf(stderr, "\tERROR: ticker length must be in the interval [1,4]\n");
+        if (0 < i && i > 5) {
+                fprintf(stderr, "\tERROR: ticker length must be in the interval [1,5]\n");
                 return 1;
         }
         return 0;
