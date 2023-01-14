@@ -18,6 +18,7 @@ typedef struct buy_tx {
         double *b_fifo;
         double cost_basis;
         struct buy_tx *next;
+        int reward;
 } buy_tx;
 
 typedef struct sell_tx {
