@@ -88,8 +88,8 @@ int print_entry(entry *e, FILE *out)
         }
 
        int check = fprintf(out,"%.8lf,%s,%02d/%02d/%d,%02d/%02d/%d,%.2lf,%.2lf,%.2f,%s\n",
-                       e->asset, e->ticker, e->date_acquired->month, 
-                       e->date_acquired->day, e->date_acquired->year, 
+                       e->asset, e->ticker, e->date_acquired->month,
+                       e->date_acquired->day, e->date_acquired->year,
                        e->date_sold->month, e->date_sold->day, e->date_sold->year,
                        e->proceeds, e->cost_basis, e->net_gain, e->term);
        if (check == 0) {
@@ -113,9 +113,9 @@ int get_term(date *b, date *s)
         sold.tm_mday = s->day;
         sold.tm_mon = s->month;
 
-        /* TODO: this modifies the `tm` structs. Whenever a field 
-         * is close their max (31 for days and 12 for months) 
-         * they ciricle around to their min. For instance, 
+        /* TODO: this modifies the `tm` structs. Whenever a field
+         * is close their max (31 for days and 12 for months)
+         * they circle around to their min. For instance,
          * the dates 2023/01/31 and 2024/02/01 does not signal a year.
          */
         int seconds = difftime(mktime(&sold), mktime(&bought));
@@ -129,7 +129,7 @@ entry* create_entry(double a, char *t, date *aq, date *sold, double p, double c)
 {
         entry *i = malloc(sizeof(entry));
         i->asset = a;
-        i->ticker = strdup(t); 
+        i->ticker = strdup(t);
         i->date_acquired = aq;
         i->date_sold = sold;
         i->proceeds = p;
@@ -151,8 +151,8 @@ void free_tx(tx *t)
 }
 
 /*
- * In FIFO fashion, find first buy with: tx ticker and 
- * non-zero fifo. Then, add transfer fees to buy cost basis.
+ * In FIFO fashion, find first buy with: tx ticker and
+ * non-zero FIFO. Then, add transfer fees to buy cost basis.
  */
 int transfer(buy_queue *bq, tx *t, FILE *out)
 {
@@ -163,7 +163,7 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                 /* just create an entry. This is only useful if you
                  * attach location data.
                  */
-                fprintf(stderr, "ERROR: Attemping to enter a transfer with a fee of 0.\n");
+                fprintf(stderr, "ERROR: Attempting to enter a transfer with a fee of 0.\n");
                 return 0;
         }
 
@@ -179,12 +179,12 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                         t->asset = t->asset - fee_to_asset;
                         t->fifo -= b->buy->asset;
 
-                        /* AGRESSIVE APPROACH. Unfinished: would need to 
+                        /* AGGRESSIVE APPROACH. Unfinished: would need to
                          * modify buy basis with fee ticker *not*
                          * the basis for buy with transaction ticker.
                          *
                         //recalculate matching buy's cost basis
-                        b->cost_basis = (b->buy->value_at_tx * b->buy->asset + 
+                        b->cost_basis = (b->buy->value_at_tx * b->buy->asset +
                                         b->buy->fee + t->fee) / b->buy->asset;
 
                         entry *e = create_entry(t->asset, t->ticker, b->buy->t_date, t->t_date, 0, 0);
@@ -193,7 +193,7 @@ int transfer(buy_queue *bq, tx *t, FILE *out)
                         free(e);
                          */
                 }
-                b = b->next; 
+                b = b->next;
         }
         return 0;
 }
@@ -277,6 +277,7 @@ int create_exchange(tx *t, buy_queue *bq, char *ticker, double to_val, FILE *out
 
         free_tx(s->sell);
         free(s);
+        return 0;
 }
 
 void portfolio(buy_queue *bq)
@@ -369,11 +370,12 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                         cols = fscanf(in, "%d-%2d-%2d,%5[^,],%lf,%lf,%5[^,],%lf,%lf\n",
                                 &year, &day, &month, ticker, &asset,
                                 &val, to_ticker, &to_val, &fee);
-                        //printf("EX TICKER:%s\n", ticker);
+
                         if (cols != 9) {
                                 fprintf(stderr, "Line %d\t", line);
                                 error("Incorrect exchange tx format.");
                         }
+
                         date *from_d = create_date(year, day, month);
                         tx *from_t = create_tx(from_d, ticker, asset, val, fee);
 
@@ -429,7 +431,7 @@ int read_csv(FILE *in, FILE *out, buy_queue *bq)
                         continue;
                 }
         }
-        print_rewards(bq); 
+        print_rewards(bq);
         printf("\nAssets owned:\n");
         portfolio(bq);
         return 0;
@@ -459,8 +461,8 @@ int main(int argc, char *argv[])
                 error("Can't open input file.");
 
         switch (argc) {
-        case 2:
-                user_input(in); // prompt user input
+        case 2: // prompt user input
+                user_input(in);
                 break;
         case 3:
                 out = argv[2];
@@ -469,7 +471,7 @@ int main(int argc, char *argv[])
 
                 buy_queue *buys = init_buy_queue();
                 read_csv(i, o, buys); // create entries
-                release(buys); 
+                release(buys);
                 fclose(o);
                 fclose(i);
                 break;
