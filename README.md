@@ -1,5 +1,8 @@
 # Transaction tracker
 
+> [!WARNING]
+> This software is for personal use and may contain instability. Not intended for critical or professional environments.
+
 FIFO transaction tracker and portfolio manager.
 
 Accepts CSV file to read in transactions.
@@ -8,6 +11,8 @@ Accepts CSV file to read in transactions.
   * Currently implements the conservative approach: convert transfer fee (in USD) into the transfers corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with the transaction fees.
   * Buying fees are added to cost basis.
   * Selling fees are subtracted from total proceeds once.
+
+## Features
 
 ## Commands
 
@@ -19,4 +24,4 @@ With environment variables:
 * Portfolio
   * `tx port[folio]`
 
-**WARNING**: interrupting the interactive prompt will not write any data to the file. To avoid losing large amount of data, you can essential "save" your session by frequently restarting the program.
+**Note**: interrupting the interactive prompt will not write any data to the file. To avoid losing large amount of data, you can essential "save" your session by frequently restarting the program.
