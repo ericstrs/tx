@@ -19,38 +19,4 @@ With environment variables:
 * Portfolio
   * `tx port[folio]`
 
-## Progress
-
-Transactions:
-
-* [x] Combine buy and sell CSV files.
-* [X] Allow for user interactive prompt and perform validation.
-* [X] Create entry field for long or short term gain/loss.
-* [] Print entries within a given year range.
-* [] Tab completion for options (including when user prompt for `action`).
-* [] Detect headers for input CSV files.
-* [] Allow env variables to set path to in and out CSV files.
-* [] Sort the CSV file by date before creating entries CSV file.
-* [] Generate buy, sell, transfer, and exchange CSV files with a header.
-* [] View transactions.
-* [] Encryption for transaction log file.
-* [] Add fee asset to transfers. When you encounter a transfer create a sell of that fee asset (only if not USD), which acts of the fee. Therefore, you can set the fees of the transfer and sell transactions to 0.
-  * [] In the short term, at least separate the fee when it is not of the same asset that is being transferred.
-* [] Add "reward" support.
-* [] Add a summary after entry file has been created.
-
-Simple portfolio metrics file that is suitable for R.
-
-* Holdings
-  * [X] Balance of currently held asset.
-  * [] Total cost (USD)
-  * [] Market value
-  * [] ROI so far
-* Dashboard
-  * [] Total value
-  * [] Total cost basis
-  * [] Unrealized gains (Total value - total cost basis)
-  * [] Change (1D, 1W, 1M, 1Y)
-
 **WARNING**: interrupting the interactive prompt will not write any data to the file. To avoid losing large amount of data, you can essential "save" your session by frequently restarting the program.
-
