@@ -22,7 +22,7 @@ sell_queue* init_sell_queue()
         return s;
 }
 
-// add a buy tansaction to the buy queue
+// add a buy transaction to the buy queue
 void enqueue_buy(buy_queue *b, buy_tx *tx)
 {
         // if the queue is empty
@@ -37,7 +37,7 @@ void enqueue_buy(buy_queue *b, buy_tx *tx)
         }
 }
 
-// remove the first buy transation from the buy queue
+// remove the first buy transaction from the buy queue
 void dequeue_buy(buy_queue *b)
 {
         // if the queue is empty
@@ -60,7 +60,7 @@ void dequeue_buy(buy_queue *b)
         free(tmp);
 }
 
-// add a sell tansaction to the sell queue
+// add a sell transaction to the sell queue
 void enqueue_sell(sell_queue *s, sell_tx *tx)
 {
         // if the queue is empty
@@ -75,7 +75,7 @@ void enqueue_sell(sell_queue *s, sell_tx *tx)
         }
 }
 
-// remove the first sell transation from the sell queue
+// remove the first sell transaction from the sell queue
 void dequeue_sell(sell_queue *s)
 {
         // if the queue is empty
