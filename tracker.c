@@ -45,8 +45,6 @@ buy_tx* create_buy_tx(tx *b)
         // determine the cost basis
         float a = b->asset;
         i->cost_basis = (b->value_at_tx * a + b->fee) / a;
-        //printf("COST: %lf\n", i->cost_basis);
-        //printf("COMPONENTS: val = %lf\tasset = %lf\tfee = %lf\n",b->value_at_tx, a, b->fee);
 
         i->reward = 0;
         i->next = NULL;
@@ -346,7 +344,7 @@ void print_rewards(buy_queue *bq)
         }
 }
 
-// read csv data and put into stuct
+// read csv data and put into struct
 int read_csv(FILE *in, FILE *out, buy_queue *bq)
 {
         int year, day, month, cols;
@@ -478,8 +476,6 @@ int main(int argc, char *argv[])
         default:
                 usage();
         };
-
-        //print_buys(buys);
 
         return 0;
 }
