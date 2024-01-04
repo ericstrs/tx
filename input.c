@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -8,7 +9,7 @@ void clear_input_buff(char *m);
 
 void check_exit(char *m) {
         if (strncasecmp(m, "q\n", 1) == 0 || strncasecmp(m, "quit\n", 4) == 0){
-                printf("Quiting\n");
+                printf("Quitting\n");
                 exit(0);
         }
 }
@@ -38,6 +39,7 @@ int prompt_str(char *f, size_t len, char *m)
         return 0;
 }
 
+// clears the input buffer.
 void clear_input_buff(char *m) {
         int i = strlen(m) - 1;
         // check if the string contains a newline
@@ -47,7 +49,7 @@ void clear_input_buff(char *m) {
         }
 }
 
-/* replace '\n' with ',' for csv output */
+// replace '\n' with ','
 void replace_newline(char *m) {
         int i;
         for (i = 0; *(m+i) != '\0'; i++) {
@@ -55,12 +57,13 @@ void replace_newline(char *m) {
         m[i - 1] = ',';
 }
 
+// validate the given date.
 int check_date(char *date, int *d) {
         // test for sufficient length
         if (strlen(date) < 8) {
                 return 1;
         }
-        
+
         char *end_ptr = NULL;
         int year = strtol(date, &end_ptr, 10);
         if (year < 1900) {
@@ -81,7 +84,7 @@ int check_date(char *date, int *d) {
                 fprintf(stderr, "\tERROR: month must be in the interval [1,12]\n");
                 return 1;
         }
-                                        
+
         d[0] = year;
         d[1] = day;
         d[2] = month;
@@ -89,6 +92,7 @@ int check_date(char *date, int *d) {
         return 0;
 }
 
+// validate the given ticker.
 int check_ticker(char *t)
 {
         int i = strlen(t) - 1;
@@ -99,6 +103,7 @@ int check_ticker(char *t)
         return 0;
 }
 
+// uppercase the given char.
 void make_upper(char *m)
 {
         for (int i = 0; m[i] != '\0'; i++) {
@@ -108,6 +113,7 @@ void make_upper(char *m)
         }
 }
 
+// ensure the given char is a positive double.
 int check_double(char *m)
 {
         char *end_ptr = NULL;
@@ -119,6 +125,7 @@ int check_double(char *m)
         return 0;
 }
 
+// prompt the user for a valid date.
 void prompt_date(int *d)
 {
         char date[12];
@@ -128,7 +135,7 @@ void prompt_date(int *d)
                 check_exit(date);
                 clear_input_buff(date);
 
-                /* default is todays date */
+                // If user pressed enter, default to today's date.
                 if (strncmp(date, "\n", 1) == 0) {
                         time_t t;
                         time(&t);
@@ -138,7 +145,7 @@ void prompt_date(int *d)
                         d[2] = local.tm_mon + 1;
                         break;
                 }
-                // else
+                // Otherwise, validate user input.
                 if (check_date(date, d)) {
                         fprintf(stderr, "\tNOTE: date must be of the form YYYY-MM-DD.\n");
                         continue;
@@ -250,8 +257,7 @@ int find_action(char *a)
                         return i;
                 }
         }
-        // no match
-        return -1;
+        return -1; // no match
 }
 
 void user_input(char *out)
@@ -262,13 +268,12 @@ void user_input(char *out)
                 return;
         }
 
-        const char *actions[] = {"buy", "sell", "transfer", "exchange"};
         char action[10], *entry;
-        int a, *c;
+        int a;
 
         printf("Type q or exit to quit.\n");
         for (;;) {
-                printf("Enter an action (): ");
+                printf("Enter an action (buy, sell, transfer, exchange): ");
                 fgets(action, 10, stdin);
 
                 a = find_action(action);
@@ -290,9 +295,9 @@ void user_input(char *out)
                         entry = "exchange";
                         exchange_input(entry, o);
                         break;
-                case 4:
-                case 5:
-                        printf("Quiting\n");
+                case 4: // User entered "q"
+                case 5: // User entered "exit"
+                        printf("Quitting\n");
                         fclose(o);
                         exit(0);
                 default:
