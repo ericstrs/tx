@@ -1,27 +1,28 @@
-# Transaction tracker
+# Tx
 
 > [!WARNING]
-> This software is for personal use and may contain instability. Not intended for critical or professional environments.
+> This software is a work in progress. Refrain from use in critical environments.
 
-FIFO transaction tracker and portfolio manager.
-
-Accepts CSV file to read in transactions.
-
-* Fees
-  * Currently implements the conservative approach: convert transfer fee (in USD) into the transfers corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with the transaction fees.
-  * Buying fees are added to cost basis.
-  * Selling fees are subtracted from total proceeds once.
+Tx is a tool to locally track your asset transactions using the FIFO (First-In, First-Out) method, making it easier to manage your portfolio and prepare for tax season.
 
 ## Features
 
-## Commands
+* Manually log buys, sells, fees and transfers.
+* Calculate cost basis and gains/losses.
+* Accepts CSV file to read in transactions.
+* Format data through CSV file generation for tax preparation.
 
-With environment variables:
+## Fees
 
-* Transaction tracker.
-  * `tx log` to be prompted with interface.
-  * `tx gen[erate]` to create separate transaction CSV files (buys, sell, etc.).
-* Portfolio
-  * `tx port[folio]`
+Buying and selling fees are straightforward, but there doesn't seem to be consensus on dealing with transfer fees:
 
-**Note**: interrupting the interactive prompt will not write any data to the file. To avoid losing large amount of data, you can essential "save" your session by frequently restarting the program.
+* Buying fees are added to cost basis.
+* Selling fees are subtracted from total proceeds once.
+* Implements the conservative approach for transfer fees: convert fee (in USD) into the corresponding ticker asset, then subtract from transfer asset. That's it. Don't do anything else with this transaction fees.
+
+## Usage
+
+* `tx <input.csv>` - prompts the logging interface.
+* `tx <input.csv> <out.csv>` - generates the formatted CSV file.
+
+**Note**: interrupting the interactive prompt will not write any data to the log. To avoid losing large amount of data, you can "save" your session by periodically restarting the program.
